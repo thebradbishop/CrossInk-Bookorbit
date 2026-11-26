@@ -1715,6 +1715,13 @@ BookReaderSettingsData loadBookReaderSettingsFile(const std::string& cachePath,
     data.hasCustomReaderSettings = data.readerSettingsOverrideMask != 0;
     applyReaderSettingsOverrides(data.readerSettings, snapshot, data.readerSettingsOverrideMask);
   }
+  if (SETTINGS.readerSettingsForAllBooks) {
+    // Apply to All Books: every book uses the global font and layout. Render mode,
+    // Safe Mode, auto page turn and the dictionary font stay per book.
+    captureReaderSettings(data.readerSettings);
+    data.readerSettingsOverrideMask = 0;
+    data.hasCustomReaderSettings = false;
+  }
   data.hasSafeModeOverride = (flags & READER_SETTINGS_FLAG_SAFE_MODE) != 0;
   if (flags & READER_SETTINGS_FLAG_RENDER_MODE) {
     data.hasRenderModeOverride = true;
@@ -2519,6 +2526,22 @@ void EpubReaderActivity::saveCurrentBookReaderSettings() {
     return;
   }
 
+  uint32_t bookEditedMask = editedMask;
+  if (SETTINGS.readerSettingsForAllBooks) {
+    // Apply to All Books: the edit becomes the default for every book. Safe Mode's
+    // temporary values are not choices, so they never become global defaults.
+    const uint32_t globalMask =
+        initialBookReaderSettings.hasSafeModeOverride ? editedMask & ~SAFE_MODE_SETTING_OVERRIDES : editedMask;
+    applyReaderSettingsOverrides(globalReaderSettingsBeforeBook, currentSettings, globalMask);
+    if (!saveGlobalSettingsPreservingBookOverrides()) return;
+    // Later edits compare against this. Render mode stays per book: keep its baseline.
+    const uint8_t baselineRenderMode = initialBookReaderSettings.readerSettings.epubRenderMode;
+    initialBookReaderSettings.readerSettings = currentSettings;
+    initialBookReaderSettings.readerSettings.epubRenderMode = baselineRenderMode;
+    bookEditedMask = editedMask & ~globalMask;
+    if (bookEditedMask == 0 && !renderModeEdited) return;
+  }
+
   if (section && section->isBuilding()) {
     // The incremental parser and section writer keep SD handles open. Release
     // them before reader_settings.bin is read/written; the build reopens both
@@ -2528,7 +2551,7 @@ void EpubReaderActivity::saveCurrentBookReaderSettings() {
 
   BookReaderSettingsData data = loadBookReaderSettingsFile(epub->getCachePath());
   const bool keepSafeMode = initialBookReaderSettings.hasSafeModeOverride &&
-                            (editedMask & SAFE_MODE_SETTING_OVERRIDES) == 0 && !renderModeEdited;
+                            (bookEditedMask & SAFE_MODE_SETTING_OVERRIDES) == 0 && !renderModeEdited;
   const uint32_t priorMask = data.readerSettingsOverrideMask;
   const ReaderSettingsSnapshot priorSettings = data.readerSettings;
   if (initialBookReaderSettings.hasSafeModeOverride && !keepSafeMode) {
@@ -2536,7 +2559,7 @@ void EpubReaderActivity::saveCurrentBookReaderSettings() {
     // saved choices, or from global settings when the book does not own them.
     for (size_t i = 0; i < READER_SETTING_FIELDS.size(); ++i) {
       const uint32_t bit = 1U << i;
-      if ((SAFE_MODE_SETTING_OVERRIDES & bit) && !(editedMask & bit)) {
+      if ((SAFE_MODE_SETTING_OVERRIDES & bit) && !(bookEditedMask & bit)) {
         const auto field = READER_SETTING_FIELDS[i];
         currentSettings.*field = (priorMask & bit) ? priorSettings.*field : globalReaderSettingsBeforeBook.*field;
       }
@@ -2548,7 +2571,7 @@ void EpubReaderActivity::saveCurrentBookReaderSettings() {
   data.readerSettings = currentSettings;
   data.readerSettingsOverrideMask =
       (priorMask & ~editedMask) |
-      (changedReaderSettingsMask(currentSettings, globalReaderSettingsBeforeBook) & editedMask);
+      (changedReaderSettingsMask(currentSettings, globalReaderSettingsBeforeBook) & bookEditedMask);
   if (keepSafeMode) {
     // Save the underlying choices, not Safe Mode's temporary values.
     applyReaderSettingsOverrides(data.readerSettings, priorSettings, priorMask & SAFE_MODE_SETTING_OVERRIDES);

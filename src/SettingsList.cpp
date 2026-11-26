@@ -126,6 +126,8 @@ void forEachBaseSetting(SettingVisitor visitor, void* context) {
                         StrId::STR_CAT_READER));
   add(SettingInfo::Toggle(StrId::STR_TEXT_AA, &CrossPointSettings::textAntiAliasing, "textAntiAliasing",
                           StrId::STR_CAT_READER));
+  add(SettingInfo::Toggle(StrId::STR_APPLY_TO_ALL_BOOKS, &CrossPointSettings::readerSettingsForAllBooks,
+                          "readerSettingsForAllBooks", StrId::STR_CAT_READER));
 #if FREEINK_DEVICE_EEGO_A4
   add(SettingInfo::Toggle(StrId::STR_TWO_TONE_TEXT_AA, &CrossPointSettings::twoToneTextAA, "twoToneTextAA",
                           StrId::STR_CAT_READER));
