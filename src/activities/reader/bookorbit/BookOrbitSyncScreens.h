@@ -52,4 +52,9 @@ void drawUpdateOffer(const GfxRenderer& renderer, const Rect& screen, const Them
 void drawFailure(const GfxRenderer& renderer, const Rect& screen, const ThemeMetrics& metrics, int top,
                  const char* message);
 
+// A framed box in the middle of the screen, drawn over whatever the frame buffer holds:
+// a small title, the status, then a summary's lines or the phase's count and bar.
+void drawBanner(const GfxRenderer& renderer, const ThemeMetrics& metrics, const char* title, const char* status,
+                const std::string (&summaryLines)[2], size_t progressDone, size_t progressTotal);
+
 }  // namespace BookOrbitSyncScreens

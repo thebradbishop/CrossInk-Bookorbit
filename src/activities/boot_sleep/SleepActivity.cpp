@@ -44,6 +44,8 @@
 #include "fontIds.h"
 #include "images/Logo120.h"
 #include "images/MoonIcon.h"
+#include "BookOrbitCredentialStore.h"
+#include "activities/reader/bookorbit/BookOrbitSyncBackdrop.h"
 
 namespace {
 
@@ -608,6 +610,10 @@ void SleepActivity::onEnter() {
   }
   renderSleepScreen();
   if (pass == SleepScreenPass::RecordForRedraw) recordRandomImage();
+  // Sync on Wake shows its banner over the screen the wake finds on the panel: this one.
+  if (BOOKORBIT_STORE.getSyncOnWake() != 0 && BOOKORBIT_STORE.hasCredentials()) {
+    BookOrbitSyncBackdrop::save(renderer);
+  }
 }
 
 bool SleepActivity::rendersQuickResume() const { return SETTINGS.usesQuickResumeSleep(fromTimeout); }

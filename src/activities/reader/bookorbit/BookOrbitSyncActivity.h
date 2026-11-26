@@ -39,7 +39,7 @@ class BookOrbitSyncActivity final : public Activity, private BookOrbitSyncReport
                                  KOReaderPosition localKoPos, std::string localChapterName,
                                  std::optional<uint16_t> currentParagraphIndex = std::nullopt, bool networkBoot = false,
                                  uint8_t readerOrientation = CrossPointSettings::ORIENTATION_COUNT,
-                                 bool sleepSync = false)
+                                 bool sleepSync = false, bool wakeSync = false)
       : Activity("BookOrbitSync", renderer, mappedInput),
         epubPath(epubPath),
         currentSpineIndex(currentSpineIndex),
@@ -50,6 +50,7 @@ class BookOrbitSyncActivity final : public Activity, private BookOrbitSyncReport
         networkBoot(networkBoot),
         readerOrientation(readerOrientation),
         sleepSync(sleepSync),
+        wakeSync(wakeSync),
         remoteProgress{},
         remotePosition{},
         localProgress(std::move(localKoPos)) {}
@@ -104,7 +105,22 @@ class BookOrbitSyncActivity final : public Activity, private BookOrbitSyncReport
   // screen, progress follows smart sync's rules and is left alone when they cannot
   // decide. Power is the only input: the press that would wake the device cancels it.
   bool sleepSync = false;
+  // Sync on Wake (BOOKORBIT_SYNC_PAYLOAD_WAKE): shown, but quick. It joins a saved
+  // network itself, follows smart sync's rules, skips the pauses and the update offer,
+  // and goes back to the book on its own, even after a failure. The choice screen still
+  // appears for a genuine conflict, as someone is there to answer it.
+  bool wakeSync = false;
+  bool wakeConnectPending = false;
+  // The screen the sync was started over is saved (BookOrbitSyncBackdrop): progress and
+  // outcomes show as a banner over it, and the sync goes back to the book on its own.
+  // Only the choice screens (a progress conflict, no remote progress, an update) take
+  // the whole screen.
+  bool bannerMode = false;
+  bool renderBanner();
+  static constexpr unsigned long WAKE_AUTO_RETURN_DELAY_MS = 300;
+  static constexpr unsigned long WAKE_FAILURE_RETURN_DELAY_MS = 2000;
   void runSleepSync();
+  void recordSyncFinished();
   // True once the sync has been abandoned for a wake press; the device is rebooting.
   bool stopIfWoken();
 

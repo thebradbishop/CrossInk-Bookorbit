@@ -98,6 +98,7 @@ inline esp_sleep_wakeup_cause_t esp_sleep_get_wakeup_cause() { return ESP_SLEEP_
 
 #include "AppVersion.h"
 #include "BookOrbitCredentialStore.h"
+#include "activities/reader/bookorbit/BookOrbitSyncBackdrop.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
 #include "DeviceCapabilities.h"
@@ -544,6 +545,11 @@ bool silentRestartToNetwork(const NetworkBootTarget target, const uint32_t paylo
   }
   LOG_DBG("MAIN", "Silent restart (target=network/%lu payload=%lu)", static_cast<unsigned long>(target),
           static_cast<unsigned long>(bootPayload));
+  // The sync shows its status as a banner over this screen. A wake's frame buffer is
+  // empty: the sleep screen saved its own copy when it was drawn.
+  if (target == NetworkBootTarget::BOOKORBIT_SYNC && (payload & BOOKORBIT_SYNC_PAYLOAD_WAKE) == 0) {
+    BookOrbitSyncBackdrop::save(renderer);
+  }
   return restartWithSilentToken(static_cast<uint32_t>(target), bootPayload);
 }
 
@@ -689,7 +695,8 @@ bool startGlobalBookOrbitSync(const bool networkBootReady, const uint32_t payloa
 
   auto syncActivity = makeUniqueNoThrow<BookOrbitSyncActivity>(
       renderer, mappedInputManager, epubPath, spineIndex, pageNumber, totalPagesInSpine, std::move(localKoPos),
-      std::move(localChapterName), paragraphIndex, networkBootReady, readerOrientation, sleepSync);
+      std::move(localChapterName), paragraphIndex, networkBootReady, readerOrientation, sleepSync,
+      (payload & BOOKORBIT_SYNC_PAYLOAD_WAKE) != 0);
   if (!syncActivity) {
     LOG_ERR("MAIN", "OOM: BookOrbit sync activity (free=%u maxAlloc=%u)", ESP.getFreeHeap(), ESP.getMaxAllocHeap());
     return false;
@@ -1576,6 +1583,33 @@ static bool restartForSleepSync(const bool requireFlush) {
   return true;
 }
 
+// Sync on Wake: a power-button wake that is about to reopen the book syncs it first.
+// Same requirements as the sleep sync; the wake itself is the reason to run.
+static bool shouldSyncBookOrbitOnWake(const HalGPIO::WakeupReason wakeupReason) {
+  if (wakeupReason != HalGPIO::WakeupReason::PowerButton) return false;
+  const uint8_t wakeMode = BOOKORBIT_STORE.getSyncOnWake();
+  if (wakeMode == 0 || !BOOKORBIT_STORE.hasCredentials()) return false;
+  const std::string& bookPath = APP_STATE.openEpubPath;
+  if (bookPath.empty() || !FsHelpers::hasEpubExtension(bookPath) || !Storage.exists(bookPath.c_str())) return false;
+  // Skip a book whose last sync is still fresh. An implausible clock, or one behind
+  // the recorded sync, cannot tell how long ago that was: sync to be safe.
+  const uint32_t skipSeconds = BookOrbitCredentialStore::syncOnWakeSkipSeconds(wakeMode);
+  uint32_t now = 0;
+  if (skipSeconds > 0 && APP_STATE.lastBookOrbitSyncPath == bookPath && WallClock::now(now) &&
+      now >= APP_STATE.lastBookOrbitSyncEpoch && now - APP_STATE.lastBookOrbitSyncEpoch < skipSeconds) {
+    LOG_INF("BOOT", "Sync on Wake: last sync %lus ago, skipping",
+            static_cast<unsigned long>(now - APP_STATE.lastBookOrbitSyncEpoch));
+    return false;
+  }
+  if (WIFI_STORE.getCredentialCount() == 0) return false;
+  const uint16_t battery = powerManager.getBatteryPercentage();
+  if (battery < SLEEP_SYNC_MIN_BATTERY_PERCENT && !gpio.isUsbConnected()) {
+    LOG_INF("BOOT", "Battery at %u%%: no BookOrbit sync on this wake", static_cast<unsigned>(battery));
+    return false;
+  }
+  return true;
+}
+
 // Hands the rest of this sleep to a minimal network boot: the session that is ending
 // fragmented the heap, and Wi-Fi plus TLS need what a fresh boot leaves (see
 // silentRestartToNetwork()). Unlike the other network restarts it draws no popup, so
@@ -2265,6 +2299,11 @@ void setup() {
       // Nothing could be synced after all: complete the sleep it was postponing.
       LOG_ERR("MAIN", "BookOrbit sleep sync could not start; sleeping");
       completeSleepAfterSleepSync();
+    } else if (!launched && snapshotTarget == static_cast<uint32_t>(NetworkBootTarget::BOOKORBIT_SYNC) &&
+               (snapshotPayload & BOOKORBIT_SYNC_PAYLOAD_WAKE) != 0) {
+      // Sync on Wake could not start: open the book the wake was going back to.
+      LOG_ERR("MAIN", "Sync on Wake could not start; opening the book");
+      silentRestartToReader();
     } else if (!launched) {
       LOG_ERR("MAIN", "Minimal network boot target failed; returning home");
       silentRestart();
@@ -2297,6 +2336,10 @@ void setup() {
                                      ? HalDisplay::HALF_REFRESH
                                      : HalDisplay::FAST_REFRESH;
     activityManager.goHome(HomeMenuItem::NONE, homeRefreshMode);
+  } else if (shouldSyncBookOrbitOnWake(wakeupReason) &&
+             silentRestartToNetwork(NetworkBootTarget::BOOKORBIT_SYNC, BOOKORBIT_SYNC_PAYLOAD_WAKE)) {
+    // Sync on Wake: restarted into the sync before the book is loaded and drawn, which
+    // would only be thrown away. The sync reopens the book when it is done.
   } else {
     // Clear app state to avoid getting into a boot loop if the epub doesn't load
     const auto path = APP_STATE.openEpubPath;

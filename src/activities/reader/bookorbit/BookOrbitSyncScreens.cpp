@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdio>
+#include <string>
+#include <vector>
 
 #include "components/UITheme.h"
 #include "fontIds.h"
@@ -208,6 +210,66 @@ void drawFailure(const GfxRenderer& renderer, const Rect& screen, const ThemeMet
   for (const auto& line : messageLines) {
     UITheme::drawCenteredText(renderer, screen, UI_10_FONT_ID, messageY, line.c_str());
     messageY += lineHeight + 4;
+  }
+}
+
+void drawBanner(const GfxRenderer& renderer, const ThemeMetrics& metrics, const char* title, const char* status,
+                const std::string (&summaryLines)[2], const size_t progressDone, const size_t progressTotal) {
+  constexpr int FRAME = 3;
+  constexpr int PADDING = 18;
+  constexpr int BAR_HEIGHT = 14;
+  const int screenWidth = renderer.getScreenWidth();
+  const int screenHeight = renderer.getScreenHeight();
+  const int boxWidth = std::min(screenWidth - 2 * 32, std::max(screenWidth * 3 / 4, 280));
+  const int textWidth = boxWidth - 2 * PADDING;
+  const int smallLine = renderer.getLineHeight(SMALL_FONT_ID);
+  const int line = renderer.getLineHeight(UI_10_FONT_ID);
+  const int gap = metrics.verticalSpacing / 2 + 2;
+
+  std::vector<std::string> statusLines = renderer.wrappedText(UI_10_FONT_ID, status, textWidth, 2);
+  std::vector<std::string> detailLines;
+  for (const std::string& summary : summaryLines) {
+    if (summary.empty()) continue;
+    for (auto& wrapped : renderer.wrappedText(UI_10_FONT_ID, summary.c_str(), textWidth, 2)) {
+      detailLines.push_back(std::move(wrapped));
+    }
+  }
+  const bool showBar = detailLines.empty() && progressTotal > 0;
+
+  int contentHeight = smallLine + gap + static_cast<int>(statusLines.size()) * line;
+  contentHeight += static_cast<int>(detailLines.size()) * (line + gap);
+  if (showBar) contentHeight += line + gap + BAR_HEIGHT + gap;
+  const int boxHeight = contentHeight + 2 * PADDING;
+  const int boxX = (screenWidth - boxWidth) / 2;
+  const int boxY = (screenHeight - boxHeight) / 2;
+
+  renderer.fillRect(boxX - FRAME, boxY - FRAME, boxWidth + 2 * FRAME, boxHeight + 2 * FRAME, true);
+  renderer.fillRect(boxX, boxY, boxWidth, boxHeight, false);
+
+  const Rect area{boxX, boxY, boxWidth, boxHeight};
+  int y = boxY + PADDING;
+  if (title != nullptr && title[0] != '\0') {
+    UITheme::drawCenteredText(renderer, area, SMALL_FONT_ID, y, title);
+  }
+  y += smallLine + gap;
+  for (const std::string& wrapped : statusLines) {
+    UITheme::drawCenteredText(renderer, area, UI_10_FONT_ID, y, wrapped.c_str(), true, EpdFontFamily::BOLD);
+    y += line;
+  }
+  for (const std::string& wrapped : detailLines) {
+    y += gap;
+    UITheme::drawCenteredText(renderer, area, UI_10_FONT_ID, y, wrapped.c_str());
+    y += line;
+  }
+  if (showBar) {
+    y += gap;
+    char counts[32];
+    snprintf(counts, sizeof(counts), "%u / %u", static_cast<unsigned>(progressDone),
+             static_cast<unsigned>(progressTotal));
+    UITheme::drawCenteredText(renderer, area, UI_10_FONT_ID, y, counts);
+    y += line + gap;
+    const int barWidth = textWidth;
+    GUI.drawProgressBar(renderer, Rect{boxX + PADDING, y, barWidth, BAR_HEIGHT}, progressDone, progressTotal);
   }
 }
 

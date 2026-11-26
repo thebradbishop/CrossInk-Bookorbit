@@ -641,7 +641,7 @@ inline constexpr size_t BASE_SETTINGS_EEGO_ENTRIES = 1;
 #else
 inline constexpr size_t BASE_SETTINGS_EEGO_ENTRIES = 0;
 #endif
-inline constexpr size_t BASE_SETTINGS_CAPACITY = 109 + BASE_SETTINGS_SCALABLE_FONT_ENTRIES +
+inline constexpr size_t BASE_SETTINGS_CAPACITY = 110 + BASE_SETTINGS_SCALABLE_FONT_ENTRIES +
                                                  (CROSSINK_APP_CAP_TOUCH ? 10 : 0) + BASE_SETTINGS_KOREADER_ENTRIES +
                                                  BASE_SETTINGS_EEGO_ENTRIES;
 

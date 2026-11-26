@@ -24,6 +24,8 @@
 #include "BookOrbitRemotePosition.h"
 #include "BookOrbitStatsUpload.h"
 #include "BookOrbitSyncMarkerFile.h"
+#include "BookOrbitSyncBackdrop.h"
+#include "WifiCredentialStore.h"
 #include "BookOrbitSyncScreens.h"
 #include "CrossPointSettings.h"
 #include "CrossPointState.h"
@@ -95,9 +97,21 @@ bool BookOrbitSyncActivity::smartSyncEnabled() const {
   return BOOKORBIT_STORE.getSyncBehavior() == BookOrbitSyncBehavior::SMART;
 }
 
-void BookOrbitSyncActivity::markAutoReturn() { autoReturnAt = millis() + AUTO_RETURN_DELAY_MS; }
+void BookOrbitSyncActivity::markAutoReturn() {
+  autoReturnAt = millis() + (wakeSync ? WAKE_AUTO_RETURN_DELAY_MS : AUTO_RETURN_DELAY_MS);
+}
+
+void BookOrbitSyncActivity::recordSyncFinished() {
+  // Sync on Wake skips a book that synced this recently. The clock was just set by NTP.
+  uint32_t now = 0;
+  if (!WallClock::now(now)) return;
+  APP_STATE.lastBookOrbitSyncEpoch = now;
+  APP_STATE.lastBookOrbitSyncPath = epubPath;
+  if (!APP_STATE.saveToFile()) LOG_ERR("BookOrbit", "Could not record the sync time");
+}
 
 void BookOrbitSyncActivity::completeAlreadySynced() {
+  recordSyncFinished();
   syncSession.reset();  // no request follows; free the TLS session before the reader reloads
   {
     RenderLock lock(*this);
@@ -173,6 +187,7 @@ void BookOrbitSyncActivity::saveProgressAndReturn(const CrossPointPosition& posi
     return;
   }
   RecentBookProgress::saveCachedEpubPercent(*epub, position.spineIndex, position.pageNumber, pageCount);
+  recordSyncFinished();
   // Manual applies record the marker too, so the history smart sync reads is
   // already there the day the option gets switched on.
   BookOrbitSyncMarkerFile::write(BookContentId::bookStateDir(epubPath), remoteProgress.timestamp,
@@ -185,7 +200,7 @@ void BookOrbitSyncActivity::returnToReader() {
   // puts the device back to sleep once the attempt unwinds. It never offers an update: the
   // next manual sync does.
   if (sleepSync) return;
-  if (offerBookUpdate()) return;
+  if (!wakeSync && offerBookUpdate()) return;
 #ifdef SIMULATOR
   endSimulatorScenarioIfRequested(static_cast<int>(state));
 #endif
@@ -426,7 +441,7 @@ void BookOrbitSyncActivity::performSync() {
   }
 
   if (result == BookOrbitSyncClient::NOT_FOUND) {
-    if (smartSyncEnabled() || sleepSync) {
+    if (smartSyncEnabled() || sleepSync || wakeSync) {
       LOG_DBG("BookOrbit", "Smart sync: no remote progress, uploading local %.6f", localProgress.percentage);
       performUpload();
       return;
@@ -495,7 +510,7 @@ bool BookOrbitSyncActivity::exchangeReadingData() {
   showExchangeSummaries();
   if (stopIfWoken()) return false;
   // While the session is open: the offer at the end of the sync needs the book to download.
-  if (!sleepSync && documentIncompatible()) resolveUpdateBook();
+  if (!sleepSync && !wakeSync && documentIncompatible()) resolveUpdateBook();
 
   recordSweep(statsAccepted);
   return !stopIfWoken();
@@ -522,7 +537,7 @@ void BookOrbitSyncActivity::showExchangeSummaries() {
       summaryLines[1] = sent;
     }
     requestUpdateAndWait();
-    if (!sleepSync) delay(1500);
+    if (!sleepSync && !wakeSync) delay(1500);
     RenderLock lock(*this);
     summaryLines[0].clear();
     summaryLines[1].clear();
@@ -536,7 +551,7 @@ void BookOrbitSyncActivity::showExchangeSummaries() {
       statusMessage = summary;
     }
     requestUpdateAndWait();
-    if (!sleepSync) delay(1500);
+    if (!sleepSync && !wakeSync) delay(1500);
   }
 }
 
@@ -577,7 +592,7 @@ void BookOrbitSyncActivity::resolveRemoteProgress() {
   const BookOrbitSmartSync::Position remote{remotePosition.spineIndex, remotePosition.pageNumber,
                                             remotePosition.totalPages};
 
-  if ((smartSyncEnabled() || sleepSync) && decideAutomatically(local, remote)) return;
+  if ((smartSyncEnabled() || sleepSync || wakeSync) && decideAutomatically(local, remote)) return;
 
   if (sleepSync) {
     // Nobody is there to answer the choice screen; the next manual sync asks it.
@@ -681,11 +696,12 @@ void BookOrbitSyncActivity::performUpload() {
 
   BookOrbitSyncMarkerFile::write(BookContentId::bookStateDir(epubPath), progress.timestamp,
                                  {currentSpineIndex, currentPage, totalPagesInSpine});
+  recordSyncFinished();
   {
     RenderLock lock(*this);
     state = UPLOAD_COMPLETE;
   }
-  if (smartSyncEnabled()) {
+  if (smartSyncEnabled() || wakeSync) {
     markAutoReturn();
   }
   requestUpdate(true);
@@ -706,6 +722,8 @@ void BookOrbitSyncActivity::onEnter() {
   // waits for loop(): at boot this onEnter() runs inside setup(), whose frames would sit
   // under the TLS session on the loop task's 8 KB stack.
   if (sleepSync) return;
+
+  bannerMode = networkBoot && BookOrbitSyncBackdrop::exists();
 
   // Sync is a reader-originated activity, but its decision prompts are not
   // reader content. Keep their touch actions available even when the reader's
@@ -760,6 +778,19 @@ void BookOrbitSyncActivity::onEnter() {
     return;
   }
 
+  if (wakeSync || WIFI_STORE.getCredentialCount() > 0) {
+    // Join a saved network from loop(), not from here: onEnter() runs inside setup(),
+    // whose frames would sit under the TLS session (see the sleep sync above).
+    {
+      RenderLock lock(*this);
+      state = SYNCING;  // CONNECTING draws nothing; this shows the status line
+      statusMessage = tr(STR_CONNECTING_SAVED_WIFI);
+    }
+    requestUpdate(true);
+    wakeConnectPending = true;
+    return;
+  }
+
   LOG_DBG("BookOrbit", "Launching WifiSelectionActivity...");
   startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) { onWifiSelectionComplete(!result.isCancelled); });
@@ -772,6 +803,7 @@ void BookOrbitSyncActivity::onExit() {
   }
   Activity::onExit();
 
+  if (!sleepSync) BookOrbitSyncBackdrop::discard();
   syncSession.reset();
   if (wifiActivated) {
     SavedWifiConnect::disconnect();
@@ -793,9 +825,57 @@ void BookOrbitSyncActivity::drawHints(const char* confirm, const char* up, const
   GUI.drawButtonHints(renderer, labels.btn1, labels.btn2, labels.btn3, labels.btn4, true);
 }
 
+bool BookOrbitSyncActivity::renderBanner() {
+  const char* status = nullptr;
+  std::string details[2];
+  size_t done = 0;
+  size_t total = 0;
+  switch (state) {
+    case WIFI_SELECTION:
+    case CONNECTING:
+      status = statusMessage.empty() ? tr(STR_CONNECTING) : statusMessage.c_str();
+      break;
+    case SYNCING:
+    case UPLOADING:
+      status = statusMessage.c_str();
+      details[0] = summaryLines[0];
+      details[1] = summaryLines[1];
+      done = progressDone;
+      total = progressTotal;
+      break;
+    case SYNC_COMPLETE:
+      status = tr(STR_ALREADY_SYNCED);
+      break;
+    case UPLOAD_COMPLETE:
+      status = tr(STR_UPLOAD_SUCCESS);
+      break;
+    case SYNC_FAILED:
+      status = statusMessage.empty() ? tr(STR_SYNC_FAILED_MSG) : statusMessage.c_str();
+      break;
+    case NO_CREDENTIALS:
+      status = tr(STR_NO_CREDENTIALS_MSG);
+      details[0] = tr(STR_BOOKORBIT_SETUP_HINT);
+      break;
+    case SHOWING_RESULT:
+    case NO_REMOTE_PROGRESS:
+    case UPDATE_OFFER:
+      return false;  // a choice: it needs the whole screen
+  }
+  // The restart emptied the frame buffer; the panel still shows the saved screen.
+  if (!BookOrbitSyncBackdrop::load(renderer)) {
+    bannerMode = false;
+    return false;
+  }
+  BookOrbitSyncScreens::drawBanner(renderer, UITheme::getInstance().getMetrics(), "BookOrbit", status, details, done,
+                                   total);
+  renderer.displayBuffer();
+  return true;
+}
+
 void BookOrbitSyncActivity::render(RenderLock&&) {
   // The sleep screen stays on the panel for the whole sleep sync.
   if (sleepSync) return;
+  if (bannerMode && renderBanner()) return;
 
   renderer.clearScreen();
 
@@ -899,6 +979,25 @@ void BookOrbitSyncActivity::loop() {
     return;
   }
 
+  if (wakeConnectPending) {
+    wakeConnectPending = false;
+    LOG_INF("BookOrbit", "Joining a saved network");
+    const bool connected = SavedWifiConnect::connect([] { return false; });
+    if (!connected && !wakeSync) {
+      // No saved network answered: let the reader pick one, as before.
+      LOG_DBG("BookOrbit", "No saved network answered, launching WifiSelectionActivity");
+      {
+        RenderLock lock(*this);
+        state = WIFI_SELECTION;
+      }
+      startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
+                             [this](const ActivityResult& result) { onWifiSelectionComplete(!result.isCancelled); });
+      return;
+    }
+    onWifiSelectionComplete(connected);
+    return;
+  }
+
   if (consumeInitialConfirmRelease()) {
     return;
   }
@@ -908,6 +1007,12 @@ void BookOrbitSyncActivity::loop() {
                              TouchHeaderBackButton::wasTapped(mappedInput, headerBandRect());
 
   if (state == NO_CREDENTIALS || state == SYNC_FAILED || state == UPLOAD_COMPLETE || state == SYNC_COMPLETE) {
+    // Sync on Wake never strands the reader on a result screen.
+    if ((wakeSync || bannerMode) && autoReturnAt == 0) {
+      autoReturnAt =
+          millis() + (state == SYNC_FAILED || state == NO_CREDENTIALS ? WAKE_FAILURE_RETURN_DELAY_MS
+                                                                       : WAKE_AUTO_RETURN_DELAY_MS);
+    }
     // Armed only by the smart outcomes: the screen already said everything it
     // has to say, so it walks back to the book on its own.
     if (autoReturnAt != 0 && millis() >= autoReturnAt) {
