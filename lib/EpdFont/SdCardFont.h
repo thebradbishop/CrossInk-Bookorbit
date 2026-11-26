@@ -154,6 +154,13 @@ class SdCardFont {
   uint32_t contentHash() const { return contentHash_; }
 
  private:
+#ifdef BOARD_HAS_PSRAM
+  // Prewarm reads neighbouring glyph bitmaps from the SD card in one request through
+  // this PSRAM buffer instead of one read per glyph (CrossPoint #4601). Freed with the
+  // font's other caches.
+  static constexpr size_t BITMAP_READ_BYTES = 16 * 1024;
+  HeapByteBuffer bitmapReadBuffer_;
+#endif
   // Per-style metadata (parsed from file header/TOC)
   struct CpFontHeader {
     uint32_t intervalCount = 0;
