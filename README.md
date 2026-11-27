@@ -1,3 +1,10 @@
+> [!NOTE]
+> **This repository is a fork of [agosez/CrossInk-Bookorbit](https://github.com/agosez/CrossInk-Bookorbit), set up for the EEGO Reader A4.** On top of it, it adds Apply to All Books, BookOrbit Sync on Wake, a sync banner in place of the full-screen sync screens, a switchable BookOrbit boot logo and faster SD-card fonts: see the [changelog](CHANGELOG.md). Its releases carry EEGO A4 firmware only, and the reader's Check for Updates looks here.
+>
+> **[How to install it on an EEGO A4](docs/eego-a4-install.md).** Unofficial firmware, tested on very few devices: flash it at your own risk, after reading the warning in that guide.
+>
+> The rest of this README is the upstream fork's and describes what it covers.
+
 > **This is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** that adds [BookOrbit](https://github.com/bookorbit/bookorbit) integration — two-way sync of reading progress, highlights and bookmarks, and a catalog browser for downloading books straight from your own server — plus a working clock on hardware that has no clock chip.
 
 Everything else — fonts, themes, reader features, reading stats, controls, the web server — comes from CrossInk unchanged, with one exception: KOReader Sync is removed to make room (see below). See the [upstream README](https://github.com/uxjulia/CrossInk#readme) for those, and the [docs](./docs/) folder in this repository for the detailed guides.

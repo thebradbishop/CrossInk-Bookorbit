@@ -5,7 +5,7 @@ records only its own additions. Each release states the CrossInk version it is b
 on; for everything inherited from upstream, see the
 [CrossInk changelog](https://github.com/uxjulia/CrossInk/blob/main/CHANGELOG.md).
 
-## [Unreleased]
+## [v2.0.0+bookorbit.1-a4.1] - 2026-11-27
 
 Based on CrossInk v2.0.0.
 
@@ -18,6 +18,7 @@ Based on CrossInk v2.0.0.
 ### Changed
 
 - A BookOrbit sync shows its progress and outcome as a banner in the middle of the screen it started from, instead of switching to screens of its own, and goes back to the book on its own once it is done. Only its choice screens (a progress conflict, no progress on the server, a newer copy of the book) still take the whole screen. A sync also joins a saved network directly, and opens the network list only when none of them answers.
+- **Check for Updates** looks at this repository's releases instead of agosez/CrossInk-Bookorbit's, so an update cannot replace this firmware with one that lacks the features above. Releases here carry EEGO A4 firmware; see [Installing on the EEGO Reader A4](docs/eego-a4-install.md).
 - On readers with PSRAM, fonts on the SD card load faster: the glyphs a page needs are read from the card in batches rather than one at a time (from [CrossPoint #4601](https://github.com/crosspoint-reader/crosspoint-reader/pull/4601)).
 
 ## [v2.0.0+bookorbit.1] - 2026-11-26
