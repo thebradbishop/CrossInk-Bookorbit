@@ -5,6 +5,21 @@ records only its own additions. Each release states the CrossInk version it is b
 on; for everything inherited from upstream, see the
 [CrossInk changelog](https://github.com/uxjulia/CrossInk/blob/main/CHANGELOG.md).
 
+## [Unreleased]
+
+Based on CrossInk v2.0.0.
+
+### Added
+
+- **Apply to All Books**, a new reader font setting (also in the font menu inside a book), on by default: font and layout changes made inside a book become the defaults for every book, instead of being kept for that book alone. Render mode, Safe Mode, the auto page turn interval and the dictionary font stay per book. Turn it off to go back to per-book settings.
+- **Settings > System > BookOrbit Sync > Sync on Wake**: Off, Every Wake, After 15 Min or After 1 Hour. A power-button wake that returns to the last book syncs it first, unless that book finished a sync within the chosen window. It joins a saved network on its own, follows smart sync's rules whatever Sync Behavior says, and reopens the book when it is done, after a failure too. A genuine progress conflict still asks.
+- **Settings > System > BookOrbit Sync > BookOrbit Boot Logo**, on by default: the default boot screen shows BookOrbit's icon and name with "Powered by CrossInk" underneath. Off restores CrossInk's own logo.
+
+### Changed
+
+- A BookOrbit sync shows its progress and outcome as a banner in the middle of the screen it started from, instead of switching to screens of its own, and goes back to the book on its own once it is done. Only its choice screens (a progress conflict, no progress on the server, a newer copy of the book) still take the whole screen. A sync also joins a saved network directly, and opens the network list only when none of them answers.
+- On readers with PSRAM, fonts on the SD card load faster: the glyphs a page needs are read from the card in batches rather than one at a time (from [CrossPoint #4601](https://github.com/crosspoint-reader/crosspoint-reader/pull/4601)).
+
 ## [v2.0.0+bookorbit.1] - 2026-11-26
 
 Based on CrossInk v2.0.0.
