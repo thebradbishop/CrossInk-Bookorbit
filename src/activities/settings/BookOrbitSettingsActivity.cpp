@@ -31,7 +31,7 @@
 namespace fui = freeink::ui;
 
 namespace {
-constexpr int MENU_ITEMS = 9;
+constexpr int MENU_ITEMS = 11;
 // The folder row reuses the OPDS strings: "Download Folder" and "SD Root" are
 // generic and already translated in every language file.
 const StrId menuNames[MENU_ITEMS] = {StrId::STR_USERNAME,
@@ -42,8 +42,12 @@ const StrId menuNames[MENU_ITEMS] = {StrId::STR_USERNAME,
                                      StrId::STR_OPDS_DOWNLOAD_FOLDER,
                                      StrId::STR_SYNC_BEHAVIOR,
                                      StrId::STR_BOOKORBIT_SYNC_ON_SLEEP,
+                                     StrId::STR_BOOKORBIT_SYNC_ON_WAKE,
+                                     StrId::STR_BOOKORBIT_BOOT_LOGO,
                                      StrId::STR_HOME};
-constexpr int HOME_ROW = 8;
+constexpr int WAKE_ROW = 8;
+constexpr int LOGO_ROW = 9;
+constexpr int HOME_ROW = 10;
 // The Home page: the top shelf, the bottom shelf, then the refresh.
 constexpr int HOME_ITEMS = 3;
 constexpr int REFRESH_ROW = 2;
@@ -249,6 +253,15 @@ void BookOrbitSettingsActivity::handleSelection() {
     BOOKORBIT_STORE.setSyncOnSleep(!BOOKORBIT_STORE.getSyncOnSleep());
     BOOKORBIT_STORE.saveToFile();
     requestUpdate();
+  } else if (selectedIndex == WAKE_ROW) {
+    BOOKORBIT_STORE.setSyncOnWake(static_cast<uint8_t>((BOOKORBIT_STORE.getSyncOnWake() + 1) %
+                                                       BookOrbitCredentialStore::SYNC_ON_WAKE_MODE_COUNT));
+    BOOKORBIT_STORE.saveToFile();
+    requestUpdate();
+  } else if (selectedIndex == LOGO_ROW) {
+    BOOKORBIT_STORE.setBootLogo(!BOOKORBIT_STORE.getBootLogo());
+    BOOKORBIT_STORE.saveToFile();
+    requestUpdate();
   } else if (selectedIndex == HOME_ROW) {
     startActivityForResult(std::make_unique<BookOrbitSettingsActivity>(renderer, mappedInput, Page::Home),
                            [](const ActivityResult&) {});
@@ -389,6 +402,12 @@ void BookOrbitSettingsActivity::buildListScreen(UiApp::ScreenType& screen) {
                                                                                     : tr(STR_ASK_EVERY_TIME);
     } else if (i == 7) {
       values[i] = BOOKORBIT_STORE.getSyncOnSleep() ? tr(STR_ON) : tr(STR_OFF);
+    } else if (i == WAKE_ROW) {
+      static constexpr StrId WAKE_MODES[BookOrbitCredentialStore::SYNC_ON_WAKE_MODE_COUNT] = {
+          StrId::STR_OFF, StrId::STR_SYNC_ON_WAKE_EVERY, StrId::STR_SYNC_ON_WAKE_15_MIN, StrId::STR_SYNC_ON_WAKE_1_HOUR};
+      values[i] = I18N.get(WAKE_MODES[BOOKORBIT_STORE.getSyncOnWake()]);
+    } else if (i == LOGO_ROW) {
+      values[i] = BOOKORBIT_STORE.getBootLogo() ? tr(STR_ON) : tr(STR_OFF);
     } else if (i == HOME_ROW) {
       // A page of its own: no value.
     } else {

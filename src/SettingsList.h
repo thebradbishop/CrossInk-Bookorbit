@@ -641,7 +641,7 @@ inline constexpr size_t BASE_SETTINGS_EEGO_ENTRIES = 1;
 #else
 inline constexpr size_t BASE_SETTINGS_EEGO_ENTRIES = 0;
 #endif
-inline constexpr size_t BASE_SETTINGS_CAPACITY = 108 + BASE_SETTINGS_SCALABLE_FONT_ENTRIES +
+inline constexpr size_t BASE_SETTINGS_CAPACITY = 111 + BASE_SETTINGS_SCALABLE_FONT_ENTRIES +
                                                  (CROSSINK_APP_CAP_TOUCH ? 10 : 0) + BASE_SETTINGS_KOREADER_ENTRIES +
                                                  BASE_SETTINGS_EEGO_ENTRIES;
 
@@ -888,7 +888,8 @@ inline std::vector<SettingInfo> buildBookReaderSettingsParentList(const std::vec
 
 inline std::vector<SettingInfo> buildReaderFontSettingsList(const std::vector<SettingInfo>& allSettings) {
   std::vector<SettingInfo> settings;
-  settings.reserve(16);
+  settings.reserve(17);
+  addSettingByName(settings, allSettings, StrId::STR_APPLY_TO_ALL_BOOKS);
   addSettingByName(settings, allSettings, StrId::STR_FONT_FAMILY);
   addSettingByName(settings, allSettings, StrId::STR_FONT_SIZE);
   addSettingByName(settings, allSettings, StrId::STR_PUBLISHER_FONTS);

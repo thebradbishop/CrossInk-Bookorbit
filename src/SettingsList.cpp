@@ -126,6 +126,8 @@ void forEachBaseSetting(SettingVisitor visitor, void* context) {
                         StrId::STR_CAT_READER));
   add(SettingInfo::Toggle(StrId::STR_TEXT_AA, &CrossPointSettings::textAntiAliasing, "textAntiAliasing",
                           StrId::STR_CAT_READER));
+  add(SettingInfo::Toggle(StrId::STR_APPLY_TO_ALL_BOOKS, &CrossPointSettings::readerSettingsForAllBooks,
+                          "readerSettingsForAllBooks", StrId::STR_CAT_READER));
 #if FREEINK_DEVICE_EEGO_A4
   add(SettingInfo::Toggle(StrId::STR_TWO_TONE_TEXT_AA, &CrossPointSettings::twoToneTextAA, "twoToneTextAA",
                           StrId::STR_CAT_READER));
@@ -485,6 +487,23 @@ void forEachBaseSetting(SettingVisitor visitor, void* context) {
         BOOKORBIT_STORE.saveToFile();
       },
       "boSyncOnSleep", StrId::STR_BOOKORBIT_SYNC));
+  add(SettingInfo::DynamicEnum(
+      StrId::STR_BOOKORBIT_SYNC_ON_WAKE,
+      {StrId::STR_OFF, StrId::STR_SYNC_ON_WAKE_EVERY, StrId::STR_SYNC_ON_WAKE_15_MIN, StrId::STR_SYNC_ON_WAKE_1_HOUR},
+      [] { return BOOKORBIT_STORE.getSyncOnWake(); },
+      [](uint8_t v) {
+        BOOKORBIT_STORE.setSyncOnWake(v);
+        BOOKORBIT_STORE.saveToFile();
+      },
+      "boSyncOnWake", StrId::STR_BOOKORBIT_SYNC));
+  add(SettingInfo::DynamicEnum(
+      StrId::STR_BOOKORBIT_BOOT_LOGO, {StrId::STR_OFF, StrId::STR_ON},
+      [] { return static_cast<uint8_t>(BOOKORBIT_STORE.getBootLogo()); },
+      [](uint8_t v) {
+        BOOKORBIT_STORE.setBootLogo(v != 0);
+        BOOKORBIT_STORE.saveToFile();
+      },
+      "boBootLogo", StrId::STR_BOOKORBIT_SYNC));
 
   // Legacy fields stay in JSON for one-time status bar migration; the web
   // editor uses /api/status-bars instead of exposing these controls.

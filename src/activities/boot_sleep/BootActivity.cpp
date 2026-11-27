@@ -17,6 +17,8 @@
 #include "ImageFolderIndex.h"
 #include "components/UITheme.h"
 #include "fontIds.h"
+#include "BookOrbitCredentialStore.h"
+#include "images/BookOrbitLogo120.h"
 #include "images/Logo120.h"
 
 namespace {
@@ -130,9 +132,18 @@ void drawDefaultBootLogo(const GfxRenderer& renderer) {
   const auto pageHeight = renderer.getScreenHeight();
 
   renderer.clearScreen();
-  renderer.drawImage(Logo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
-  renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 70, tr(STR_CROSSINK), true, EpdFontFamily::BOLD);
-  renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95, tr(STR_BOOTING));
+  // BookOrbit Sync > BookOrbit Boot Logo (on by default) picks BookOrbit's icon or CrossInk's.
+  if (BOOKORBIT_STORE.getBootLogo()) {
+    renderer.drawImage(BookOrbitLogo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
+    // A product name: not translated.
+    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 70, "BookOrbit", true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95, tr(STR_POWERED_BY_CROSSINK));
+    renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 125, tr(STR_BOOTING));
+  } else {
+    renderer.drawImage(Logo120, (pageWidth - 120) / 2, (pageHeight - 120) / 2, 120, 120);
+    renderer.drawCenteredText(UI_10_FONT_ID, pageHeight / 2 + 70, tr(STR_CROSSINK), true, EpdFontFamily::BOLD);
+    renderer.drawCenteredText(SMALL_FONT_ID, pageHeight / 2 + 95, tr(STR_BOOTING));
+  }
   const auto safe = UITheme::getInstance().getScreenSafeArea(renderer);
   GUI.drawHelpText(renderer, Rect{safe.x, safe.y + safe.height - 30, safe.width, 30}, AppVersion::version());
 }

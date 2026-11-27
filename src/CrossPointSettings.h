@@ -681,6 +681,9 @@ class CrossPointSettings : public PersistableStore<CrossPointSettings> {
   uint8_t focusReadingEnabled = 0;
   // Guide Dots - places a middle dot between words to guide the eye
   uint8_t guideReadingEnabled = 0;
+  // 1 = font and layout changes made inside a book become the defaults for every
+  // book, and per-book font/layout overrides are ignored. 0 = each book keeps its own.
+  uint8_t readerSettingsForAllBooks = 1;
   // Per-book EPUB render mode runtime value. This is intentionally not saved as a global setting.
   uint8_t epubRenderMode = 0;
   // SD card font family name, including optional range suffix (empty = use built-in fontFamily)
