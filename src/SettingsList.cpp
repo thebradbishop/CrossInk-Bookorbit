@@ -496,6 +496,14 @@ void forEachBaseSetting(SettingVisitor visitor, void* context) {
         BOOKORBIT_STORE.saveToFile();
       },
       "boSyncOnWake", StrId::STR_BOOKORBIT_SYNC));
+  add(SettingInfo::DynamicEnum(
+      StrId::STR_BOOKORBIT_BOOT_LOGO, {StrId::STR_OFF, StrId::STR_ON},
+      [] { return static_cast<uint8_t>(BOOKORBIT_STORE.getBootLogo()); },
+      [](uint8_t v) {
+        BOOKORBIT_STORE.setBootLogo(v != 0);
+        BOOKORBIT_STORE.saveToFile();
+      },
+      "boBootLogo", StrId::STR_BOOKORBIT_SYNC));
 
   // Legacy fields stay in JSON for one-time status bar migration; the web
   // editor uses /api/status-bars instead of exposing these controls.

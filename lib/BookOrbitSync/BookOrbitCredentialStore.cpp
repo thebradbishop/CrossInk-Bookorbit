@@ -60,6 +60,7 @@ void BookOrbitCredentialStore::toJson(JsonDocument& doc) const {
   doc["syncBehavior"] = static_cast<uint8_t>(syncBehavior);
   doc["syncOnSleep"] = syncOnSleep;
   doc["syncOnWakeMode"] = syncOnWake;
+  doc["bootLogo"] = bootLogo;
   for (int i = 0; i < HOME_SHELF_COUNT; i++) {
     const BookOrbitHomeShelfSource& shelf = homeShelves[i];
     char value[sizeof(shelf.id) + sizeof(shelf.name) + 4];
@@ -94,6 +95,7 @@ bool BookOrbitCredentialStore::fromJson(JsonVariantConst doc) {
   // Builds before the wake window had an on/off "syncOnWake"; on meant every wake.
   syncOnWake = doc["syncOnWakeMode"] | static_cast<uint8_t>((doc["syncOnWake"] | false) ? 1 : 0);
   if (syncOnWake >= SYNC_ON_WAKE_MODE_COUNT) syncOnWake = 0;
+  bootLogo = doc["bootLogo"] | true;
 
   // A missing or unreadable shelf is the one the Home had before shelves could be chosen.
   for (int i = 0; i < HOME_SHELF_COUNT; i++) {

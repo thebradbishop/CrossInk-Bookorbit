@@ -43,6 +43,8 @@ class BookOrbitCredentialStore : public PersistableStore<BookOrbitCredentialStor
   // Sync on Wake: 0 = off, 1 = every wake, 2 = when the book's last sync is over
   // 15 minutes old, 3 = over an hour old (see BookOrbitSyncOnWake).
   uint8_t syncOnWake = 0;
+  // The default boot screen shows the BookOrbit logo (true) or CrossInk's (false).
+  bool bootLogo = true;
   // Discover over Recently Added, the Library page before shelves could be chosen.
   BookOrbitHomeShelfSource homeShelves[HOME_SHELF_COUNT] = {{BookOrbitHomeShelfKind::DISCOVER, {}, {}},
                                                             {BookOrbitHomeShelfKind::RECENTLY_ADDED, {}, {}}};
@@ -104,6 +106,15 @@ class BookOrbitCredentialStore : public PersistableStore<BookOrbitCredentialStor
     return syncOnWake;
   }
   static constexpr uint8_t SYNC_ON_WAKE_MODE_COUNT = 4;
+
+  void setBootLogo(const bool enabled) {
+    ensureLoaded();
+    bootLogo = enabled;
+  }
+  bool getBootLogo() const {
+    ensureLoaded();
+    return bootLogo;
+  }
   // Seconds a book's last successful sync stays fresh enough to skip a wake sync.
   static constexpr uint32_t syncOnWakeSkipSeconds(const uint8_t mode) {
     return mode == 2 ? 15u * 60u : (mode == 3 ? 60u * 60u : 0u);
