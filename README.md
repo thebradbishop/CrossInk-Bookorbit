@@ -1,37 +1,45 @@
-> [!NOTE]
-> **This repository is a fork of [agosez/CrossInk-Bookorbit](https://github.com/agosez/CrossInk-Bookorbit), set up for the EEGO Reader A4.** On top of it, it adds Apply to All Books, BookOrbit Sync on Wake, a sync banner in place of the full-screen sync screens, a switchable BookOrbit boot logo and faster SD-card fonts: see the [changelog](CHANGELOG.md). Its releases carry EEGO A4 firmware only, and the reader's Check for Updates looks here.
->
-> **[How to install it on an EEGO A4](docs/eego-a4-install.md).** Unofficial firmware, tested on very few devices: flash it at your own risk, after reading the warning in that guide.
->
-> The rest of this README is the upstream fork's and describes what it covers.
+# CrossInk + BookOrbit for the EEGO Reader A4
 
-> **This is a personal fork of [CrossInk](https://github.com/uxjulia/CrossInk)** that adds [BookOrbit](https://github.com/bookorbit/bookorbit) integration — two-way sync of reading progress, highlights and bookmarks, and a catalog browser for downloading books straight from your own server — plus a working clock on hardware that has no clock chip.
+Firmware for the **EEGOREAD A4** and **A4 Lite** e-readers that syncs with a self-hosted [BookOrbit](https://github.com/bookorbit/bookorbit) library: reading progress, highlights and bookmarks in both directions, reading statistics, and a catalog for browsing and downloading your books on the device.
 
-Everything else — fonts, themes, reader features, reading stats, controls, the web server — comes from CrossInk unchanged, with one exception: KOReader Sync is removed to make room (see below). See the [upstream README](https://github.com/uxjulia/CrossInk#readme) for those, and the [docs](./docs/) folder in this repository for the detailed guides.
+> [!WARNING]
+> **Unofficial firmware, use at your own risk.** It is not made, endorsed or supported by EEGO/EEGOREAD, CrossPoint, CrossInk, CrossInk-Bookorbit or BookOrbit, and it has been tested on very few devices. Flashing replaces the stock firmware and may void your warranty. Read the warning in the [install guide](docs/eego-a4-install.md) and back up the stock firmware before you flash.
 
-**Note**: this fork publishes releases for the Xteink X3, X4, X4 Pro and X4 Classic, the Seeed reTerminal Sticky, the BOOX Picco and the EEGO Reader A4.
+**[Install it on an EEGO A4](docs/eego-a4-install.md)** · [Releases](https://github.com/thebradbishop/CrossInk-Bookorbit/releases) · [Changelog](CHANGELOG.md)
 
----
+## What it is built on
 
-## What's different in this fork
+1. **[CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader)**: open-source firmware for ESP32 micro e-readers. The A4's stock firmware is itself a rebranded CrossPoint.
+2. **[CrossInk](https://github.com/uxjulia/CrossInk)**: a CrossPoint fork with more themes, fonts and reader features. Its v2.0.0 added official EEGO A4 support.
+3. **[CrossInk-Bookorbit](https://github.com/agosez/CrossInk-Bookorbit)**: a CrossInk fork that adds the BookOrbit integration described below. This repository is a fork of it, based on its `v2.0.0+bookorbit.1`.
+4. **[FreeInk SDK](https://github.com/Free-Ink/freeink-sdk)**: the hardware layer, including the A4's display, touch, battery and frontlight drivers.
 
-- **BookOrbit progress sync** — sync your reading position with a self-hosted BookOrbit server.
-- **BookOrbit highlight and bookmark sync** — two-way: what you highlight or bookmark on the device appears in the web reader at its exact place in the text, what you add on the web lands in the book, and deletions propagate both ways.
-- **A BookOrbit Home theme** — Home as pages of tiles modeled on BookOrbit's dashboard: the current book, streak, week and yearly goal, the catalog's shelves with their covers, and a year of reading. Opening it never waits on the network: a sync keeps it up to date, and without an account it runs on your own numbers.
-- **BookOrbit catalog browser** — browse your server's library on the device and download EPUBs over WiFi, including by author, series or collection.
-- **Offline shortcuts to your own books** — "On device" and "In progress" categories that open a book directly, without touching the network.
-- **Reading statistics pushed to BookOrbit** — your reading time, streaks and pace on the server's dashboard, fed by the pages you turn on the device.
-- **A working clock on the X4** — the status-bar clock, which upstream can only show on hardware that has a clock chip, plus an opt-in mode that keeps the time running through sleep.
-- **KOReader Sync is removed** — CrossInk v2.0.0 renamed it Sync Server and added reading-stats and clippings sync to it; its screens, settings, shortcut and sync actions (Sync Book, Sync Folder, Sync Books) are gone. The X3/X4 firmware gets a 6.5 MB partition, and this fork's BookOrbit layer plus CrossInk's own growth stopped fitting in it; dropping the second sync provider is what buys the room. Credentials already saved on the SD card are left alone: an account set up before the removal keeps the sync actions, but cannot be changed on the device.
-- **No OPDS browser on the X3 and X4** — CrossInk v2.0.0's later changes no longer fit in that same partition alongside BookOrbit, so the X3/X4 firmware leaves out the OPDS browser, its settings and its web settings section; the BookOrbit catalog covers the same need. Saved OPDS servers stay on the SD card. The X4 Pro, X4 Classic, Sticky, Picco and EEGO A4 keep OPDS.
+All the A4 hardware support comes from those projects. Fonts, themes, reader features, reading stats, controls and the web server are CrossInk's: see the [upstream README](https://github.com/uxjulia/CrossInk#readme) and the [docs](./docs/) folder.
 
-BookOrbit exposes a KOReader-compatible sync API, so this fork talks to it the same way the official BookOrbit KOReader plugin does. Your BookOrbit server must be recent enough to serve the KOReader plugin endpoints under `{server}/api/v1/koreader` — including `plugin/catalog/*` for the catalog browser and `plugin/annotations/*` / `plugin/bookmarks/*` for highlight and bookmark sync (servers without those are detected, and the missing steps are simply skipped).
+## What this fork adds
+
+- **Apply to All Books**: font and layout changes made inside a book become the default for every book, instead of being kept for that book only. It is on by default, in the reader's font settings and the font menu inside a book.
+- **BookOrbit Sync on Wake**: waking the reader syncs the book you were reading before it reopens. Choose Every Wake, After 15 Min or After 1 Hour (skip the sync when the book synced more recently than that). See [Syncing when the device wakes](#syncing-when-the-device-wakes).
+- **A sync banner**: a sync shows its progress as a banner in the middle of the screen you were on, instead of switching to screens of its own, and returns to your book by itself. It joins a saved Wi-Fi network directly.
+- **BookOrbit boot logo**: the boot screen shows BookOrbit's icon with "Powered by CrossInk" underneath. Switch it off under **Settings → System → BookOrbit Sync → BookOrbit Boot Logo**.
+- **Faster SD-card fonts**: glyphs for fonts on the SD card are read in batches (from [CrossPoint #4601](https://github.com/crosspoint-reader/crosspoint-reader/pull/4601)).
+- **Updates from this repository**: Check for Updates looks at this repository's releases, so an update cannot replace this firmware with one that lacks these features.
+
+## What it inherits from CrossInk-Bookorbit
+
+- **BookOrbit progress sync**: sync your reading position with a self-hosted BookOrbit server.
+- **BookOrbit highlight and bookmark sync**: two-way. What you highlight or bookmark on the device appears in the web reader at its exact place in the text, what you add on the web lands in the book, and deletions propagate both ways.
+- **A BookOrbit Home theme**: Home as pages of tiles modeled on BookOrbit's dashboard.
+- **BookOrbit catalog browser**: browse your server's library on the device and download EPUBs over Wi-Fi, including by author, series or collection.
+- **Offline shortcuts to your own books**: "On device" and "In progress" categories that open a book directly, without touching the network.
+- **Reading statistics pushed to BookOrbit**: your reading time, streaks and pace on the server's dashboard, fed by the pages you turn on the device.
+- **KOReader Sync is removed**: CrossInk-Bookorbit drops CrossInk's KOReader sync (renamed Sync Server in CrossInk v2.0.0) in favour of BookOrbit. Credentials already saved on the SD card are left alone.
+
+BookOrbit exposes a KOReader-compatible sync API, so this firmware talks to it the same way the official BookOrbit KOReader plugin does. Your BookOrbit server must be recent enough to serve the KOReader plugin endpoints under `{server}/api/v1/koreader` — including `plugin/catalog/*` for the catalog browser and `plugin/annotations/*` / `plugin/bookmarks/*` for highlight and bookmark sync (servers without those are detected, and the missing steps are simply skipped).
 
 ---
 
 ## The BookOrbit Home theme
-
-![The BookOrbit Home theme's three pages on an Xteink X4: Home with the current book, streak, week, yearly goal and other books being read; Library with the catalog's Discover and Recently Added shelves and what is on the card; Statistics with a year of reading, a finish date, reading moments, totals and a highlight of the day](docs/images/bookorbit-home/overview.png)
 
 Choose **BookOrbit** in **Settings → Display → UI Theme**, and Home becomes three pages of tiles modeled on BookOrbit's own dashboard:
 
@@ -39,9 +47,7 @@ Choose **BookOrbit** in **Settings → Display → UI Theme**, and Home becomes 
 - **Library** — the catalog's Discover and Recently Added shelves, links to the catalog, its authors and its series, and what is on the card: how many books, how many came from BookOrbit, and how full the card is. A book that is not on the card yet downloads from its cover, and Home comes back once it is done.
 - **Statistics** — a year of reading, one square a day, when you will finish the current book, the times and days you read, your all-time totals, the next badge and a highlight of the day.
 
-Left and Right turn pages, Up and Down move between tiles; on touch devices, swipe between pages and tap a tile. Opening Home never waits on the network: Sync on Sleep or the BookOrbit tile bring the server's numbers, reading done on the device counts straight away, and without an account the theme runs on your own numbers. The [reader features guide](docs/reader-features.md#bookorbit-home) has the details.
-
-_Screenshots taken in the simulator, with public-domain books from [Standard Ebooks](https://standardebooks.org)._
+On the A4, swipe between pages and tap a tile; the page buttons turn pages. Opening Home never waits on the network: Sync on Sleep or the BookOrbit tile bring the server's numbers, reading done on the device counts straight away, and without an account the theme runs on your own numbers. The [reader features guide](docs/reader-features.md#bookorbit-home) has the details.
 
 ---
 
@@ -114,6 +120,20 @@ Turn on **Settings → System → BookOrbit Sync → Sync on Sleep** and the dev
 
 Each sync keeps Wi-Fi on for a few seconds, and longer when no saved network answers, so the option is off by default.
 
+### Syncing when the device wakes
+
+**Settings → System → BookOrbit Sync → Sync on Wake** syncs the book you were reading when a press of the power button wakes the device and it is about to reopen that book. The sync runs before the book is loaded, as a banner over the sleep screen, and the book opens as soon as it is done.
+
+- **Every Wake** syncs each time. **After 15 Min** and **After 1 Hour** skip the sync when the book finished a sync (from the menu, on sleep or on wake) more recently than that, so a quick look at the reader does not wait on Wi-Fi.
+- **Progress follows the Smart sync rules**, whatever **Sync Behavior** says. A genuine conflict (both sides moved since the last sync) still shows the choice screen, since you are there to answer it.
+- **It is skipped** when no Wi-Fi network is saved, and when the battery is below 10% with no charger connected. A sync that fails shows the error for two seconds and opens the book anyway.
+
+Expect a few seconds per wake, mostly joining Wi-Fi and the secure connection to your server. The option is off by default.
+
+### The sync banner
+
+A sync shows its progress (joining Wi-Fi, highlights, bookmarks, reading sessions, then the position) in a banner in the middle of the screen it started from, and goes back to the book by itself once it is done. The screen is saved to the SD card while the reader restarts into its network mode, so the banner sits over the page you were on. Only the choices take the whole screen: a progress conflict, no progress on the server yet, and a newer copy of the book in your library.
+
 ## Syncing highlights and bookmarks
 
 Every BookOrbit sync of a book also exchanges its highlights and bookmarks with the
@@ -165,45 +185,7 @@ for a week.
 
 ### How faithful the timestamps are
 
-**On the X3 this section does not apply**: it has a clock chip, so every page event is
-stamped with the real time and lands exactly where it belongs.
-
-The X4 has no clock chip. Its clock stops whenever the device sleeps, and the firmware can
-only put it back to the last time it knew about at wake — so a page read at 20:00 can be
-recorded as if it happened at 08:20. Rather than upload that, the device records which
-_clock timeline_ each event belongs to and fixes the timestamps at upload time, using the
-error each sync measures against NTP. Two cases:
-
-- **With Settings → System → Device → Keep Clock While Asleep on**, the clock never stops,
-  so the only error is the oscillator's drift — a couple of minutes per 12 h. Each sync
-  measures that drift and spreads it across the events in proportion to when they
-  happened, so sessions land within seconds of reality. Nothing to think about. Note that
-  the drift is only corrected in the _uploaded stats_: the clock **shown** on screen stays
-  a minute or two off until the next WiFi connection resets it.
-- **With the option off**, accuracy depends on you syncing at least once per run — a run
-  being everything between two sleeps. A sync anchors the run's whole timeline, so every
-  session it uploads is placed correctly, including the ones read before it in that run.
-
-The friction points of leaving the option off:
-
-- **A run with no sync in it keeps a wrong timestamp for good.** Its sessions are dated
-  from the last time the device knew, which is where the _previous_ run ended — so they
-  pile up right after it. Read in the morning, sleep, read in the evening and sync only
-  then, and the morning session is the one that lands wrong, possibly on the previous day.
-  That is a real cost on the server side: BookOrbit's streaks and daily charts key off the
-  date, so a misdated session breaks a streak that you did not actually break.
-- **The order and the pacing are always right, only the anchor moves.** Gaps between pages
-  within a run are measured by a timer that keeps running, so a shifted block stays
-  internally exact — a session never appears to last longer or shorter than it did.
-- **It gets worse with each sleep, not with time.** Three runs without a sync means three
-  blocks stacked onto the same anchor, not a gradual smear.
-- **The cheap mitigation is a button.** Bind _BookOrbit Sync_ to the power button under
-  **Settings → Controls** and press it when you put the book down; one sync per run is all
-  the accuracy needs. It is also what drains the queue, so it costs nothing extra.
-  **Sync on Sleep** does the same every time the device sleeps, with no button to press.
-- **A flat battery or a firmware flash loses the clock entirely.** The sessions queued
-  before that still upload correctly as long as a sync happens in the same run, because
-  they are placed relative to that sync rather than by absolute time.
+The A4 has a clock chip (a PCF8563), so every page event is stamped with the real time and lands where it belongs. Syncing regularly (Sync on Sleep, Sync on Wake or the BookOrbit Sync shortcut) keeps the server's streaks and daily charts current.
 
 ## Browsing and downloading from the catalog
 
@@ -232,7 +214,7 @@ A server book list (a root section, the books of an author, series, collection, 
 - **Sort** — date added, title, author (by last name), recently read or series. The first row of the picker flips the direction (A-Z or Z-A); a newly picked order starts in its natural direction, newest first for dates.
 - **Filter** — all books, or only those that are unread, being read or finished on your BookOrbit account. The header then names the filter, and its count is the number of matching books.
 
-On the X3 and X4, **Left** opens Sort and **Right** opens Filter while **Up** and **Down** move through the list, as in the Library. On touch devices, the two buttons at the right of the header open them. Your server does the sorting and filtering, so a long list keeps paging exactly. The choice applies to the list you are in; opening a section again shows it in its own order.
+On the A4, the two buttons at the right of the header open them. Your server does the sorting and filtering, so a long list keeps paging exactly. The choice applies to the list you are in; opening a section again shows it in its own order.
 
 When the Library's **List View** is **Expanded**, a book list is split into sections the way the Library splits its own: by first letter when sorted by title or author (where your server ranks it, by the author's last name), by day when sorted by date added, and by series when sorted by series. The second row of the Sort picker switches the List View between Expanded and Compact without leaving the catalog; it is the Library's setting, so the Library follows.
 
@@ -240,66 +222,26 @@ When the Library's **List View** is **Expanded**, a book list is split into sect
 
 In **On device** and **In progress**, Confirm opens the book in the reader instead of downloading it. **On device** is sorted by file name on the SD card and read a page at a time, so it lists every book, however many the card holds.
 
-On the X3 and X4, the reader restarts briefly before it opens the catalog and before each download, so the secure connection gets the memory it needs; leaving the catalog restarts it once more. A long listing keeps only the pages around the one on screen in memory and reloads the others from the SD card as you scroll back.
+A long listing keeps only the pages around the one on screen in memory and reloads the others from the SD card as you scroll back.
 
 > If the catalog reports _"BookOrbit sent an unexpected reply"_, the server answered but not with the catalog API — usually a BookOrbit version without the KOReader catalog endpoints, a wrong server URL, or a reverse proxy/SSO layer intercepting `/api/v1/koreader/plugin/*`.
 
 ---
 
-## Clock on devices without a clock chip
-
-The X4 has no battery-backed RTC, so upstream's status-bar clock never appeared on it and
-its settings were hidden. Here the clock reads the device's system clock instead, which is
-refreshed from NTP on every WiFi connection.
-
-To turn it on, open **Settings → Display → Status Bar** and put `Clock` in the left, center
-or right position; to see it while reading, add it to a reader bar under **Settings →
-Reader → Status Bars**. `Date` works the same way. Then set **Settings → System → Device →
-Clock UTC Offset** and **Clock Format**. The time appears once the device has been connected
-to WiFi at least once — before that there is nothing to display. A clock you had turned on
-with the former **Hide Clock** setting is carried over.
-
-### Keeping the time through sleep, and what it costs
-
-By default the device releases its own power latch when it sleeps, which cuts power to
-everything including the timer that counts wall-clock time. The time is therefore lost at
-every sleep and only comes back at the next WiFi connection. **Settings → System → Device
-→ Keep Clock While Asleep** skips that release, so the board stays powered, the processor
-enters a genuine deep sleep, and the clock keeps running.
-
-It is off by default because it trades standby battery life for an almost always-correct clock (time will drift when device is not connected to WiFi for a long time).
-Before leaving it on, know that:
-
-- **the device no longer powers off completely when it sleeps.** It keeps drawing a small
-  current, so it will slowly discharge in a drawer instead of sitting indefinitely.
-- **the cost has only been spot-checked.** On an X4, twelve hours of sleep with the setting
-  enabled cost about 5% of battery, which extrapolates to roughly ten days of standby.
-  Over the same twelve hours the clock drifted two to three minutes, since it runs on an
-  internal RC oscillator rather than a crystal; the next WiFi connection resets it. Treat
-  both as one measurement rather than a specification, and watch your own battery over a
-  few days before relying on it.
-
-Turning the setting back off restores the stock behaviour exactly.
-
-It also decides how faithful your uploaded reading-session timestamps are — see
-[Reading statistics](#reading-statistics), which is the main reason to leave it on.
-
----
-
 ## Installation
 
-Download the `firmware-*.bin` for your device from **this repository's** [releases page](https://github.com/agosez/CrossInk-Bookorbit/releases) — not upstream's, which does not include BookOrbit support. CrossInk's own web installer only offers upstream builds, so flash the file as a custom firmware with the [CrossPoint flash tools](https://crosspointreader.com/#flash-tools), from the command line, or from the SD card — [Installation](./docs/installation.md) walks through each path, including USB-locked devices and reverting to upstream CrossInk.
+Follow **[Installing on the EEGO Reader A4](docs/eego-a4-install.md)**: back up the stock firmware, then flash the four files from this repository's [releases](https://github.com/thebradbishop/CrossInk-Bookorbit/releases) over USB-C with esptool. The guide also covers going back to the stock firmware.
 
-Once this firmware is installed, **Settings → System → Check for Updates** resolves against this fork's releases, so later versions arrive over the air. Devices running upstream CrossInk will not see these releases: the first install has to be done by USB or SD card. Picco is the exception: it has no over-the-air or SD card update, so every version goes through the USB steps in [Installation](./docs/installation.md#boox-picco), which keep its factory recovery software.
+Once this firmware is installed, **Settings → System → Check for Updates** looks at this repository's releases, so later versions can arrive over the air.
 
 ### Languages
 
-Since CrossInk v2.0.0 only English is built into the firmware. This fork publishes its own language packs, translated in full including the BookOrbit screens: choose **Settings → System → Device → Download Languages**, connect to Wi-Fi and pick a language, and the reader installs it and restarts to Home. After updating from an earlier version, What's New offers to download the language you were using. Without Wi-Fi, take `crossink-languages-<version>.zip` from the same release as the firmware, copy its `.crossink` folder to the root of the SD card, then pick the language in **Settings → System → Device → Language**. Upstream's packs do not fit this fork: they lack its screens.
+Since CrossInk v2.0.0 only English is built into the firmware. CrossInk-Bookorbit publishes its own language packs, translated in full including the BookOrbit screens: choose **Settings → System → Device → Download Languages**, connect to Wi-Fi and pick a language, and the reader installs it and restarts to Home. After updating from an earlier version, What's New offers to download the language you were using. Without Wi-Fi, take `crossink-languages-<version>.zip` from the same release as the firmware, copy its `.crossink` folder to the root of the SD card, then pick the language in **Settings → System → Device → Language**. Upstream CrossInk's packs do not fit: they lack the BookOrbit screens. The settings this fork adds (Sync on Wake, BookOrbit Boot Logo, Apply to All Books) stay in English in other languages.
 
 ## Development
 
 ```sh
-pio run -e default --target upload   # X3/X4 build, flashed over USB-C; see platformio.ini for the other devices
+pio run -e eego_a4 --target upload   # EEGO A4 build, flashed over USB-C; see platformio.ini for the other devices
 ```
 
 See [Getting Started](./docs/development/getting-started.md) for prerequisites and validation commands, and [Testing and Debugging](./docs/development/testing-debugging.md) for serial logging and static analysis. `AGENTS.md` holds the repository's engineering conventions.
@@ -308,6 +250,6 @@ See [Getting Started](./docs/development/getting-started.md) for prerequisites a
 
 - [User Guide](./docs/user-guide.md) and [Reader Features](./docs/reader-features.md)
 - [Controls](./docs/controls.md) — full button action list
-- [Installation](./docs/installation.md)
+- [Installing on the EEGO Reader A4](./docs/eego-a4-install.md), and CrossInk's general [Installation](./docs/installation.md)
 - [Data Cache](./docs/data-cache.md) and [File Formats](./docs/file-formats.md)
 - [Common issues](./docs/troubleshooting.md)
