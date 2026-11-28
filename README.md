@@ -7,6 +7,11 @@ Firmware for the **EEGOREAD A4** and **A4 Lite** e-readers that syncs with a sel
 
 **[Install it on an EEGO A4](docs/eego-a4-install.md)** · [Releases](https://github.com/thebradbishop/CrossInk-Bookorbit/releases) · [Changelog](CHANGELOG.md)
 
+<p align="center">
+  <img src="docs/images/eego-a4/reading.jpg" width="300" alt="An EEGO A4 held in one hand, showing a page of The House in the Cerulean Sea with the frontlight on: the clock and battery at the top, progress and time left at the bottom">
+  <img src="docs/images/eego-a4/sleep-cover.jpg" width="300" alt="An EEGO A4 held in one hand, asleep, showing the cover of The House in the Cerulean Sea as its sleep screen">
+</p>
+
 ## What it is built on
 
 1. **[CrossPoint](https://github.com/crosspoint-reader/crosspoint-reader)**: open-source firmware for ESP32 micro e-readers. The A4's stock firmware is itself a rebranded CrossPoint.
@@ -40,6 +45,12 @@ BookOrbit exposes a KOReader-compatible sync API, so this firmware talks to it t
 ---
 
 ## The BookOrbit Home theme
+
+<p align="center">
+  <img src="docs/images/eego-a4/home.jpg" width="260" alt="The BookOrbit Home page on an EEGO A4: the current book with its cover, progress and time left, a 34-day streak, this week's reading, the yearly goal, the BookOrbit sync tile and three other books being read">
+  <img src="docs/images/eego-a4/library.jpg" width="260" alt="The Library page on an EEGO A4: the catalog's Discover and Recently Added shelves with covers, and tiles for the catalog, authors, series and the books on the card">
+  <img src="docs/images/eego-a4/statistics.jpg" width="260" alt="The Statistics page on an EEGO A4: a year of reading, a finish date, the next badge, reading moments and days, totals and a highlight of the day">
+</p>
 
 Choose **BookOrbit** in **Settings → Display → UI Theme**, and Home becomes three pages of tiles modeled on BookOrbit's own dashboard:
 
