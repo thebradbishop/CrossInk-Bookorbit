@@ -49,4 +49,11 @@ class BookOrbitHomeRefreshActivity final : public Activity {
   // What the scan did, shown under the covers step and before the restart; empty when it
   // recognised nothing.
   std::string summaryLines[2];
+  // The screen the sync was started from is saved (BookOrbitSyncBackdrop): every step
+  // shows as a banner over it instead of a screen of its own.
+  bool bannerMode = false;
+  // Joined a saved network directly, without WifiSelectionActivity (which sets the clock).
+  bool joinedSavedNetwork = false;
+  // Every way out restarts, which skips onExit(): drop the saved screen first.
+  void leave();
 };

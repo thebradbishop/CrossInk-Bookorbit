@@ -547,7 +547,8 @@ bool silentRestartToNetwork(const NetworkBootTarget target, const uint32_t paylo
           static_cast<unsigned long>(bootPayload));
   // The sync shows its status as a banner over this screen. A wake's frame buffer is
   // empty: the sleep screen saved its own copy when it was drawn.
-  if (target == NetworkBootTarget::BOOKORBIT_SYNC && (payload & BOOKORBIT_SYNC_PAYLOAD_WAKE) == 0) {
+  if ((target == NetworkBootTarget::BOOKORBIT_SYNC && (payload & BOOKORBIT_SYNC_PAYLOAD_WAKE) == 0) ||
+      target == NetworkBootTarget::BOOKORBIT_HOME_REFRESH) {
     BookOrbitSyncBackdrop::save(renderer);
   }
   return restartWithSilentToken(static_cast<uint32_t>(target), bootPayload);
