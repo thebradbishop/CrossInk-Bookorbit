@@ -5,6 +5,14 @@ records only its own additions. Each release states the CrossInk version it is b
 on; for everything inherited from upstream, see the
 [CrossInk changelog](https://github.com/uxjulia/CrossInk/blob/main/CHANGELOG.md).
 
+## [Unreleased]
+
+Based on CrossInk v2.0.0.
+
+### Changed
+
+- The BookOrbit Home sync (the BookOrbit tile's **Sync now**, and **Refresh lists** in the BookOrbit settings) now shows its steps as the sync banner over the screen it started from, instead of switching to screens of its own, and joins a saved Wi-Fi network directly. The network list only opens when no saved network answers.
+
 ## [v2.0.0+bookorbit.1-a4.1] - 2026-11-27
 
 Based on CrossInk v2.0.0.

@@ -13,7 +13,10 @@
 #include "BookOrbitHomeStore.h"
 #include "SdCardFontSystem.h"
 #include "SilentRestart.h"
+#include "WifiCredentialStore.h"
 #include "activities/network/WifiSelectionActivity.h"
+#include "activities/reader/bookorbit/BookOrbitSyncBackdrop.h"
+#include "activities/reader/bookorbit/BookOrbitSyncScreens.h"
 #include "components/UITheme.h"
 #include "components/themes/bookorbit/BookOrbitHomeLayout.h"
 #include "fontIds.h"
@@ -31,6 +34,7 @@ void BookOrbitHomeRefreshActivity::onEnter() {
   Activity::onEnter();
   // This boot's onEnter() can run inside setup(): the scan waits for the first loop().
   scanPending = true;
+  bannerMode = BookOrbitSyncBackdrop::exists();
   requestUpdate();
 }
 
@@ -40,11 +44,21 @@ void BookOrbitHomeRefreshActivity::connect() {
   const BookOrbitDeviceScan::Progress progress{this, &BookOrbitHomeRefreshActivity::onScanProgress};
   BookOrbitDeviceScan::prepare(nullptr, &progress);
   // Shown again if the Wi-Fi screen hands back before the refresh starts.
+  if (WIFI_STORE.getCredentialCount() > 0) {
+    // A saved network first, as the book sync does: no network list unless none answers.
+    showStep(State::Connecting);
+    if (SavedWifiConnect::connect([] { return false; })) {
+      joinedSavedNetwork = true;
+      refreshPending = true;  // runRefresh() on the next loop(), as after the Wi-Fi screen
+      return;
+    }
+    LOG_INF("BookOrbit", "Home refresh: no saved network answered, showing the network list");
+  }
   state = State::Connecting;
   startActivityForResult(std::make_unique<WifiSelectionActivity>(renderer, mappedInput),
                          [this](const ActivityResult& result) {
                            if (result.isCancelled) {
-                             silentRestart();
+                             leave();
                              return;
                            }
                            // Out of this callback: the session belongs on loop()'s stack.
@@ -93,7 +107,7 @@ void BookOrbitHomeRefreshActivity::runRefresh() {
   // The snapshot's age and the reading days depend on the date. WifiSelectionActivity has
   // just set the system clock on a board without a clock chip; a board with one only asks
   // NTP once, so its system clock is set here.
-  if (halClock.isAvailable()) halClock.syncSystemTimeFromNTP();
+  if (halClock.isAvailable() || joinedSavedNetwork) halClock.syncSystemTimeFromNTP();
   WallClock::checkpoint();
 
   const auto sizes = BookOrbitHomeLayout::coverSizes(renderer);
@@ -112,7 +126,7 @@ void BookOrbitHomeRefreshActivity::runRefresh() {
   LOG_INF("BookOrbit", "Home refresh over (ok=%d, free=%u maxAlloc=%u)", refreshed, ESP.getFreeHeap(),
           ESP.getMaxAllocHeap());
   if (refreshed && summaryLines[0].empty()) {
-    silentRestart();
+    leave();
     return;
   }
   if (refreshed) {
@@ -138,8 +152,13 @@ void BookOrbitHomeRefreshActivity::loop() {
     runRefresh();
     return;
   }
-  if (state == State::Failed && millis() - failedAt >= FAILURE_MESSAGE_MS) silentRestart();
-  if (state == State::ScanSummary && millis() - summaryAt >= SUMMARY_MESSAGE_MS) silentRestart();
+  if (state == State::Failed && millis() - failedAt >= FAILURE_MESSAGE_MS) leave();
+  if (state == State::ScanSummary && millis() - summaryAt >= SUMMARY_MESSAGE_MS) leave();
+}
+
+void BookOrbitHomeRefreshActivity::leave() {
+  BookOrbitSyncBackdrop::discard();
+  silentRestart();
 }
 
 void BookOrbitHomeRefreshActivity::render(RenderLock&&) {
@@ -150,6 +169,7 @@ void BookOrbitHomeRefreshActivity::render(RenderLock&&) {
   size_t total = 0;
   switch (state) {
     case State::Connecting:
+      if (bannerMode) status = tr(STR_CONNECTING_SAVED_WIFI);
       break;
     case State::Scanning:
       switch (scanStep) {
@@ -191,9 +211,19 @@ void BookOrbitHomeRefreshActivity::render(RenderLock&&) {
       break;
   }
 
+  const auto& metrics = UITheme::getInstance().getMetrics();
+  // The restart emptied the frame buffer; the panel still shows the saved screen.
+  if (bannerMode && BookOrbitSyncBackdrop::load(renderer)) {
+    const std::string noSummary[2];
+    BookOrbitSyncScreens::drawBanner(renderer, metrics, "BookOrbit", status, showSummary ? summaryLines : noSummary,
+                                     done, total);
+    renderer.displayBuffer();
+    return;
+  }
+  bannerMode = false;
+
   // The book sync's layout: title band, then the step around the middle of the screen,
   // wrapped rather than cut at the screen's edges.
-  const auto& metrics = UITheme::getInstance().getMetrics();
   const Rect screen = UITheme::getInstance().getScreenSafeArea(renderer, true, false);
   const Rect text{screen.x + metrics.contentSidePadding, screen.y,
                   std::max(1, screen.width - metrics.contentSidePadding * 2), screen.height};
